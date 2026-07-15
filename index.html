@@ -972,9 +972,9 @@ function renderSegmentation(){
             <table>
               <thead><tr><th>Customer</th><th>Txns</th><th>Total Volume</th><th>Last Active</th><th>Trend</th></tr></thead>
               <tbody>
-                ${list.length ? list.map(p => `
+                ${list.length ? list.map((p, i) => `
                   <tr>
-                    <td>${p.name}</td>
+                    <td>Customer ${i + 1}</td>
                     <td>${p.count.toLocaleString()}</td>
                     <td>${fmtCurrency(p.totalVolume)}</td>
                     <td>${MONTH_FULL[MONTH_ORDER[p.lastIdx]].slice(0,3)}</td>
