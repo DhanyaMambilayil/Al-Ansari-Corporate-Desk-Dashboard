@@ -329,6 +329,18 @@ const DATA = JSON.parse(document.getElementById('txn-data').textContent);
 // of which month that flag appears on.
 const newCustomerSids = new Set(DATA.filter(r => r.ct === 'new').map(r => r.sid));
 
+// A customer flagged "new" keeps that flag on every one of their rows in the
+// sheet (not just their first), so counting by flag alone would show them as
+// "new" in every month they're active. Instead, only count them in the one
+// month that's actually their first-ever transaction.
+const firstMonthBySid = {};
+DATA.forEach(r => {
+  const idx = MONTH_ORDER.indexOf(r.mo);
+  if (!(r.sid in firstMonthBySid) || idx < MONTH_ORDER.indexOf(firstMonthBySid[r.sid])){
+    firstMonthBySid[r.sid] = r.mo;
+  }
+});
+
 // ---- Derived lookups ----
 const monthsPresent = [...new Set(DATA.map(r => r.mo))].sort((a,b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
 const latestMonth = monthsPresent[monthsPresent.length - 1];
@@ -398,7 +410,7 @@ function aggregate(records){
   records.forEach(r => {
     amt += r.amt; profit += r.profit; comm += r.comm; rev += r.rev;
     sids.add(r.sid);
-    if (newCustomerSids.has(r.sid)) newSids.add(r.sid);
+    if (newCustomerSids.has(r.sid) && r.mo === firstMonthBySid[r.sid]) newSids.add(r.sid);
   });
   return { amt, profit, comm, rev, count: records.length, active: sids.size, newc: newSids.size };
 }
@@ -879,7 +891,7 @@ function percentile(arr, p){
 
 function classifySegment(p, latestIdx, highVolThreshold){
   if (p.recencyGap === 0){
-    if (newCustomerSids.has(p.sid)) return 'newc';
+    if (newCustomerSids.has(p.sid) && p.firstIdx === latestIdx) return 'newc';
     if (p.tenure <= 3 && p.trend !== 'declining') return 'potential';
     if (p.totalVolume >= highVolThreshold && p.trend !== 'declining') return 'champions';
     if (p.trend === 'declining') return 'attention';
