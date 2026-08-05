@@ -224,6 +224,7 @@
     <div class="status-block">
       <span class="dot" id="statusDot"></span>
       <span id="statusText">Connecting…</span>
+      <span id="asOfLabel" style="display:none;border-left:1px solid var(--line);padding-left:10px;margin-left:2px;"></span>
       <button id="refreshBtn">Refresh</button>
     </div>
   </header>
@@ -381,6 +382,31 @@ function setStatus(text, ok){
   document.getElementById('statusDot').classList.toggle('err', !ok);
 }
 
+function findAsOfDate(grid){
+  for (let r = 0; r < grid.length; r++){
+    for (let c = 0; c < grid[r].length; c++){
+      const cell = String(grid[r][c] || '').trim().toLowerCase();
+      if (cell === 'as on' || cell === 'as of'){
+        // check the cell below first (matches the sheet layout seen), then to the right
+        const below = grid[r+1] && grid[r+1][c];
+        const right = grid[r][c+1];
+        const raw = (below && String(below).trim()) || (right && String(right).trim());
+        if (!raw) continue;
+        // "As on" values are day/month/year (e.g. 31/07/2026 — 31 can't be a month)
+        const m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (m){
+          const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+          if (!isNaN(d.getTime())){
+            return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+          }
+        }
+        return raw; // fall back to showing whatever text was found, unparsed
+      }
+    }
+  }
+  return null;
+}
+
 function rowsFromCsv(parsedRows, headerRow){
   const normHeaders = headerRow.map(h => String(h || '').trim().toLowerCase());
   const colIndex = {};
@@ -413,6 +439,7 @@ let monthsPresent = [];
 let latestMonth = null;
 let prevMonth = null;
 let bdoList = [];
+let asOfDate = null; // text label read from the sheet's "As on" cell, e.g. "31/07/2026"
 
 let currentTab = 'cm';
         // 'cm' | 'ytd' — Current Month is the default landing tab
@@ -1076,6 +1103,7 @@ async function loadData(){
     const headerRow = grid[0];
     DATA = rowsFromCsv(grid.slice(1), headerRow);
     if (!DATA.length) throw new Error('No matching rows found \u2014 check column headers match the expected names');
+    asOfDate = findAsOfDate(grid);
 
     newCustomerSids = new Set(DATA.filter(r => r.ct === 'new').map(r => r.sid));
 
@@ -1098,6 +1126,13 @@ async function loadData(){
     rmCurRmSelected = null;
 
     renderAll();
+    const asOfEl = document.getElementById('asOfLabel');
+    if (asOfDate){
+      asOfEl.textContent = 'As on ' + asOfDate;
+      asOfEl.style.display = '';
+    } else {
+      asOfEl.style.display = 'none';
+    }
     setStatus('Synced ' + new Date().toLocaleTimeString(), true);
   }catch(err){
     console.error(err);
