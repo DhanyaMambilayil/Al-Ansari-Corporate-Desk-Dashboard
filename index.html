@@ -378,7 +378,9 @@ function num(v){
 }
 
 function setStatus(text, ok){
-  document.getElementById('statusText').textContent = text;
+  const el = document.getElementById('statusText');
+  el.textContent = text;
+  el.style.display = text ? '' : 'none';
   document.getElementById('statusDot').classList.toggle('err', !ok);
 }
 
@@ -1133,7 +1135,7 @@ async function loadData(){
     } else {
       asOfEl.style.display = 'none';
     }
-    setStatus('Synced ' + new Date().toLocaleTimeString(), true);
+    setStatus('', true);
   }catch(err){
     console.error(err);
     setStatus('Error: ' + err.message, false);
